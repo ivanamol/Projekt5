@@ -1,36 +1,15 @@
-from datetime import datetime
-
-import mysql.connector
-from mysql.connector import Error
-from mysql.connector.errors import IntegrityError
+from mysql.connector.errors import IntegrityError, DatabaseError
 import pytest
 
-from config import load_config
 from db_connect import connect_to_db
-
-# funkce vytvoreni_tabulky() - upřednostnila jsem AJ, snad nevadí
-# Vytvoření tabulky úkoly pokud neexistuje pro testovací databázi
-def create_table_if_not_exist(cursor):
-    try:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS ukoly (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                nazev VARCHAR(100) NOT NULL,
-                popis VARCHAR(250) NOT NULL,
-                stav ENUM('nezahájeno', 'hotovo', 'probíhá') NOT NULL DEFAULT 'nezahájeno',
-                datum_vytvoreni TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-""")
-    
-    except Error as e:
-        print(f"Chyba při vytváření tabulky: {e}")
+from repository import create_table_if_not_exists
 
 # Fixture pro připojení k testovací databázi
 @pytest.fixture(scope="module")
 def db():
-    conn = connect_to_db(testing=True) #config nemusím předávat, protože v podmínce je, že pokud žádný config nepředám - nastaví se None a fce tedy použije load_config(testing=testing) - a ve fci load_config bude předáno testing=True - takže se načte testovací databáze
+    conn = connect_to_db(testing=True)
     cursor = conn.cursor()
-    create_table_if_not_exist(cursor)
+    create_table_if_not_exists(cursor)
     yield cursor
     conn.rollback()
     cursor.close()
@@ -41,17 +20,46 @@ def db():
 def seed_test_data(db):
     # Vyčistí tabulku
     db.execute("SET FOREIGN_KEY_CHECKS = 0")
-    db.execute("TRUNCATE TABLE tasks")
+    db.execute("TRUNCATE TABLE ukoly")
     db.execute("SET FOREIGN_KEY_CHECKS = 1")
 
     # vloží úkol
     db.execute("""
         INSERT INTO ukoly (id, nazev, popis, stav)
-        VALUES (1, 'Odevzdat projekt 6', 'Jedná se o projektu pro kurz Engeto, který je třeba dokončit a odevzdat již co nejdříve')
+        VALUES (1, 'Odevzdat projekt 6', 'Jedná se o projektu pro kurz Engeto, který je třeba dokončit a odevzdat již co nejdříve', 'nezahájeno')
     """)
-    db.connection.commit()
 
+# Pozitivní test - v databázi se nenachází úkol bez názvu - s prázdným řetězcem
+def test_nazev_not_empty(db):
+    db.execute("SELECT nazev FROM ukoly WHERE TRIM(nazev) = ''")
+    assert db.fetchall() == []
 
+# Pozitivní test - v databázi se nenachází test s hodnotou NULL
+def test_nazev_not_null(db):
+    db.execute("SELECT nazev FROM ukoly WHERE nazev IS NULL")
+    assert db.fetchall() == []
+
+# Negativní test - vložení úkolu s prázdným řetězcem jako názvem
+def test_insert_nazev_empty(db):
+    with pytest.raises((IntegrityError, DatabaseError), match="violated"):
+        db.execute("INSERT INTO ukoly (nazev, popis, stav) VALUES (%s, %s, %s)", ("", "popis", "nezahájeno"))
+
+# Negativní test - vložení úkolu bez názvu (absence hodnoty)
+def test_insert_nazev_null(db):
+    with pytest.raises(IntegrityError):
+        db.execute("INSERT INTO ukoly (nazev, popis, stav) VALUES (%s, %s, %s)", (None, "popis", "nezahájeno"))
+
+# Pozitivní test přidání nového úkolu bez statusu - nastaví se status nezahájeno
+def test_stav_default_nezahajeno(db):
+    db.execute("INSERT INTO ukoly (nazev, popis) VALUES (%s, %s)",("Nazev_test1", "Popis_test1"))
+    db.execute("SELECT stav FROM ukoly ORDER BY id DESC LIMIT 1")
+    (stav,) = db.fetchone()
+    assert stav == 'nezahájeno'
+
+# Negativní test přidání úkolu s nevalidním statusem
+def test_insert_invalid_stav(db):
+    with pytest.raises(DatabaseError):
+        db.execute("INSERT INTO ukoly (nazev, popis, stav) VALUES (%s, %s, %s)", ("Název", "Popis", "nevalidní_stav"))
 
     
 

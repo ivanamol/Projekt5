@@ -1,7 +1,17 @@
-from repository import (add_task, show_tasks, update_task, delete_task, get_filtered_tasks, get_all_tasks)
+from repository import connect_to_db, create_table_if_not_exists, add_task, show_tasks, update_task, delete_task, get_filtered_tasks, get_all_tasks
 
 # funkce hlavni_menu() - upřednostnila jsem AJ, snad nevadí
 def main_menu():
+    # vytvářím tabulku v "produkci", pokud tabulka neexisuje, ať je kam úkol uložit - potřebovala jsem ošetřit, pokud zde spojení selže - nemohlo by se předat do cursoru
+    conn = connect_to_db()
+    if not conn:
+        return
+    cursor = conn.cursor()
+    create_table_if_not_exists(cursor)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
     while True:
         print(
             "\nSprávce úkolů - Hlavní menu\n"
@@ -15,25 +25,7 @@ def main_menu():
         user_choice = input("Vyberte možnost (1-5): ")
 
         if user_choice == "1":
-            while True:
-                task_name = input("Zadejte název úkolu: ").strip()
-                if not task_name:
-                    print("\nZadali jste prázdný vstup do názvu úkolu.")
-                    continue
-                if len(task_name) > 100:
-                    print("\nZadali jste příliš dlouhý název úkolu, maximální počet znaků je 100.")
-                    continue
-
-                task_description = input("Zadejte popis úkolu: ").strip()
-                if not task_description:
-                    print("\nZadali jste prázdný vstup do popisu úkolu")
-                    continue
-                if len(task_description) > 250:
-                    print("\nZadali jste příliš dlouhý popis úkolu, maximální počet znaků je 250.")
-                    continue
-                add_task(task_name, task_description)
-                break
-  
+            add_task()
 
         elif user_choice == "2":
             filtered_task_list = get_filtered_tasks()

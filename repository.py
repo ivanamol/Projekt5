@@ -1,10 +1,50 @@
+from mysql.connector import Error
+
 from db_connect import connect_to_db
 
 # upřednostnila jsem AJ, snad nevadí
 
+# funkce vytvoreni_tabulky() - pokud ještě daná tabulka neexistuje, ošetřeno, že nelze zadat prázdný vstup u názvu a popisu
+def create_table_if_not_exists(cursor):
+    try:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ukoly (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nazev VARCHAR(100) NOT NULL,
+                popis VARCHAR(250) NOT NULL,
+                stav ENUM('nezahájeno', 'hotovo', 'probiha') NOT NULL DEFAULT 'nezahájeno',
+                datum_vytvoreni TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT check_nazev_not_empty CHECK (TRIM(nazev) <> ''),
+                CONSTRAINT check_popis_not_empty CHECK (TRIM(popis) <> '')
+            )
+""")
+    
+    except Error as e:
+        print(f"Chyba při vytváření tabulky: {e}")
+
+
 # funkce pridat_ukol()
-# id a i stav ošetřen na straně databáze
-def add_task(task_name, task_description, task_status='nezahájeno', conn=None):
+def add_task(conn=None):
+    while True:
+        task_name = input("Zadejte název úkolu: ").strip()
+        if not task_name:
+            print("\nZadali jste prázdný vstup do názvu úkolu.")
+            continue
+        if len(task_name) > 100:
+            print("\nZadali jste příliš dlouhý název úkolu, maximální počet znaků je 100.")
+            continue
+        task_description = input("Zadejte popis úkolu: ").strip()
+        if not task_description:
+            print("\nZadali jste prázdný vstup do popisu úkolu.")
+            continue
+        if len(task_description) > 250:
+            print("\nZadali jste příliš dlouhý popis úkolu, maximální počet znaků je 250.")
+            continue
+        add_task_to_db(task_name, task_description, conn=conn)
+        break
+
+
+def add_task_to_db(task_name, task_description, task_status='nezahájeno', conn=None):
     """
     Adds a new task to the database.
     If a connection (conn) is not provided, the function creates its own.
@@ -19,12 +59,12 @@ def add_task(task_name, task_description, task_status='nezahájeno', conn=None):
         "INSERT INTO ukoly (nazev, popis, stav) VALUES (%s, %s, %s)", (task_name, task_description, task_status)
     )
     conn.commit()
-    print(f"Úkol '{task_name}' byl přidán")
+    print(f"Úkol '{task_name}' byl přidán.")
 
     cursor.close()
     if close_conn:
         conn.close()
-
+        
 
 def get_filtered_tasks(conn=None):
     """
@@ -101,7 +141,7 @@ def delete_task(id_choice, conn=None):
     cursor.execute("DELETE FROM ukoly WHERE id = %s", (id_choice,))
 
     conn.commit()
-    print(f"Úkol ID '{id_choice}' byl smazán")
+    print(f"Úkol ID '{id_choice}' byl smazán.")
 
     cursor.close()
     if close_conn:
