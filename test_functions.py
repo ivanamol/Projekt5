@@ -1,7 +1,7 @@
 import pytest
 
 from db_connect import connect_to_db
-from repository import create_table_if_not_exists, add_task, get_all_tasks
+from repository import create_table_if_not_exists, add_task, get_all_tasks, update_task, delete_task
 
 # Fixture pro připojení k testovací databázi
 @pytest.fixture(scope="module") # Chci aby se mi otevřelo připojení a trvalo než se provedou všechny testy, ať se pořád neotevírá a nezavírá, fixture clear_test_data mi vždy data připraví - vyčistí před každám jednotlivým testem, tak by to mělo být ok
