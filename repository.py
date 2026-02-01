@@ -12,7 +12,7 @@ def create_table_if_not_exists(cursor):
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 nazev VARCHAR(100) NOT NULL,
                 popis VARCHAR(250) NOT NULL,
-                stav ENUM('nezahájeno', 'hotovo', 'probiha') NOT NULL DEFAULT 'nezahájeno',
+                stav ENUM('nezahájeno', 'hotovo', 'probíhá') NOT NULL DEFAULT 'nezahájeno',
                 datum_vytvoreni TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 CONSTRAINT check_nazev_not_empty CHECK (TRIM(nazev) <> ''),
                 CONSTRAINT check_popis_not_empty CHECK (TRIM(popis) <> '')
@@ -78,7 +78,7 @@ def get_filtered_tasks(conn=None):
     
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT id, nazev, popis, stav FROM ukoly WHERE stav = 'nezahájeno' OR stav = 'probíhá'"
+        "SELECT id, nazev, popis, stav FROM ukoly WHERE stav = 'nezahájeno' OR stav = 'probíhá' ORDER BY id ASC"
     )
     task_list = cursor.fetchall()
 
@@ -160,7 +160,7 @@ def update_task_in_db(task_id_choice, new_status_choice, conn=None):
 
 # funkce odstranit_ukol()
 def delete_task(conn=None):
-    all_task_list = get_all_tasks()
+    all_task_list = get_all_tasks(conn=conn)
     while True:
         if all_task_list:
             show_tasks(all_task_list)
@@ -175,7 +175,7 @@ def delete_task(conn=None):
                 delete_task_from_db(task_id_choice, conn=conn)
                 break
             else:
-                print("Zadáno nevalidní id, aktualizace neproběhla.\n")
+                print("Zadáno nevalidní id, smazání neproběhlo.\n")
         else:
             print("Nejsou žádné úkoly ke smazání, seznam je prázdný.")
             break
