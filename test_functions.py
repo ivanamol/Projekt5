@@ -3,12 +3,14 @@ import pytest
 from db_connect import connect_to_db
 from repository import add_task, add_task_to_db, create_table_if_not_exists, get_all_tasks, get_filtered_tasks, update_task, delete_task
 
+
 # Fixture pro připojení k testovací databázi
 @pytest.fixture(scope="module") # Chci aby se mi otevřelo připojení a trvalo než se provedou všechny testy, ať se pořád neotevírá a nezavírá, fixture clear_test_data mi vždy data připraví - vyčistí před každám jednotlivým testem, tak by to mělo být ok
 def db_conn():
     conn = connect_to_db(testing=True)
     yield conn
     conn.close()
+
 
 # Fixure pro případné vytvoření tabulky ukoly, pokud neexistuje
 @pytest.fixture(scope="module", autouse= True)
@@ -17,6 +19,7 @@ def create_table(db_conn):
     create_table_if_not_exists(cursor)
     db_conn.commit()
     cursor.close()
+
 
 # Fixture pro vyčištění dat před každým jednotlivým testem
 @pytest.fixture(autouse=True)
@@ -65,7 +68,7 @@ def test_update_task(db_conn, monkeypatch, capsys):
 
 
 # Negativní test funkce update_task - zadání neplatného id - jiné než číslo
-def test_update_task_fail_stav(db_conn, monkeypatch, capsys):
+def test_update_task_fail_id(db_conn, monkeypatch, capsys):
     add_task_to_db("Název fail0 update_task", "Popis0 fail id", "nezahájeno", conn=db_conn)
     add_task_to_db("Název fail1 update_task", "Popis1 fail id", "probíhá", conn=db_conn)
     task_id_1 = get_filtered_tasks(conn=db_conn)[1][0]
@@ -91,4 +94,31 @@ def test_delete_task(db_conn, monkeypatch, capsys):
     tasks_after = get_all_tasks(conn=db_conn)
     assert all(task[0] != task_id for task in tasks_after)
 
+
+# Negativní test funkce delete_task - zadání chybného id - nečíselné
+def test_delete_task_non_numeric_string(db_conn, monkeypatch, capsys):
+    add_task_to_db("Název test", "Popis", "nezahájeno", conn=db_conn)
+    tasks = get_all_tasks(conn=db_conn)
+    task_id = next(task[0] for task in tasks if task[1] == "Název test") # id pro následné ukončení testu
+    inputy = iter(["a", str(task_id)]) # druhý input nutný pro ukončení testu
+    monkeypatch.setattr("builtins.input", lambda _: next(inputy))
+    delete_task(conn=db_conn)
+    captured = capsys.readouterr()
+    tasks_after = get_all_tasks(conn=db_conn)
+    assert "Zadáno nevalidní id, smazání neproběhlo" in captured.out
+    assert len(tasks_after) == len(tasks) - 1 # jeden úkol se druhým inputem vymazal pro ukončení testu
+
+
+# Negativní test funkce delete_task - zadání neexistujícího id
+def test_delete_non_existent_id(db_conn, monkeypatch, capsys):
+    add_task_to_db("Název úkolu1", "Popis1", "nezahájeno", conn=db_conn)
+    tasks = get_all_tasks(conn=db_conn)
+    task_id = next(task[0] for task in tasks if task[1] == "Název úkolu1") # id pro následné ukončení testu
+    inputy = iter(["999", str(task_id)]) # druhý input nutný pro ukončení testu
+    monkeypatch.setattr("builtins.input", lambda _: next(inputy))
+    delete_task(conn=db_conn)
+    captured = capsys.readouterr()
+    tasks_after = get_all_tasks(conn=db_conn)
+    assert "Zadáno nevalidní id, smazání neproběhlo." in captured.out
+    assert len(tasks_after) == len(tasks) - 1 # jeden úkol se druhým inputem vymazal pro ukončení testu
 

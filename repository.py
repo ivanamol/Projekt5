@@ -6,6 +6,10 @@ from db_connect import connect_to_db
 
 # funkce vytvoreni_tabulky() - pokud ještě daná tabulka neexistuje, ošetřeno, že nelze zadat prázdný vstup u názvu a popisu
 def create_table_if_not_exists(cursor):
+    """
+    Creates the 'ukoly' table with the required schema if it does not already exist.
+    The schema includes columns for task details, status tracking, and basic input validation.
+    """
     try:
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS ukoly (
@@ -25,6 +29,10 @@ def create_table_if_not_exists(cursor):
 
 # funkce pridat_ukol()
 def add_task(conn=None):
+    """
+    Interactively prompts the user for task details, validates input, 
+    and saves the task to the database.
+    """
     while True:
         task_name = input("Zadejte název úkolu: ").strip()
         if not task_name:
@@ -104,7 +112,12 @@ def show_tasks(task_list):
 
 # funkce aktualizovat_ukol()
 def update_task(conn=None):
-    filtered_task_list = get_filtered_tasks()
+    """
+    Provides an interactive interface for updating task status.
+    Displays available tasks, validates the selected ID and ensures 
+    the new status is one of the allowed values ('probíhá', 'hotovo').
+    """
+    filtered_task_list = get_filtered_tasks(conn=conn)
     valid_statuses = ["probíhá", "hotovo"]
     while True:
 
@@ -137,7 +150,7 @@ def update_task(conn=None):
 
 def update_task_in_db(task_id_choice, new_status_choice, conn=None):
     """
-    Updates the status (probíhá/hotovo) of a task in the 'ukoly' table.
+    Updates the status of an existing task in the 'ukoly' table by its ID.
     If no connection (conn) is provided, the function creates its own.
     """
     close_conn = False
@@ -160,6 +173,11 @@ def update_task_in_db(task_id_choice, new_status_choice, conn=None):
 
 # funkce odstranit_ukol()
 def delete_task(conn=None):
+    """
+    Provides an interactive interface for deleting a task.
+    Displays all existing tasks, prompts the user for a valid task ID, 
+    and removes the selected task from the database.
+    """
     all_task_list = get_all_tasks(conn=conn)
     while True:
         if all_task_list:
