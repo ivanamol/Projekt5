@@ -2,6 +2,7 @@ import os
 
 from dotenv import load_dotenv
 
+
 def load_config(testing=False):
     env_file = ".env.test" if testing else ".env"
     load_dotenv(dotenv_path=env_file)

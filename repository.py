@@ -4,25 +4,33 @@ from db_connect import connect_to_db
 
 # upřednostnila jsem AJ, snad nevadí
 
-# funkce vytvoreni_tabulky() - pokud ještě daná tabulka neexistuje, ošetřeno, že nelze zadat prázdný vstup u názvu a popisu
+
+# funkce vytvoreni_tabulky() - pokud ještě daná tabulka neexistuje, ošetřeno,
+# že nelze zadat prázdný vstup u názvu a popisu
 def create_table_if_not_exists(cursor):
     """
-    Creates the 'ukoly' table with the required schema if it does not already exist.
-    The schema includes columns for task details, status tracking, and basic input validation.
+    Creates the 'ukoly' table with the required schema if it does not already
+    exist.
+    The schema includes columns for task details, status tracking, and basic
+    input validation.
     """
     try:
-        cursor.execute("""
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS ukoly (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 nazev VARCHAR(100) NOT NULL,
                 popis VARCHAR(250) NOT NULL,
-                stav ENUM('nezahájeno', 'hotovo', 'probíhá') NOT NULL DEFAULT 'nezahájeno',
+                stav ENUM(
+                    'nezahájeno', 'hotovo', 'probíhá'
+                ) NOT NULL DEFAULT 'nezahájeno',
                 datum_vytvoreni TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 CONSTRAINT check_nazev_not_empty CHECK (TRIM(nazev) <> ''),
                 CONSTRAINT check_popis_not_empty CHECK (TRIM(popis) <> '')
             )
-""")
-    
+            """
+        )
+
     except Error as e:
         print(f"Chyba při vytváření tabulky: {e}")
 
@@ -30,7 +38,7 @@ def create_table_if_not_exists(cursor):
 # funkce pridat_ukol()
 def add_task(conn=None):
     """
-    Interactively prompts the user for task details, validates input, 
+    Interactively prompts the user for task details, validates input,
     and saves the task to the database.
     """
     while True:
@@ -39,20 +47,28 @@ def add_task(conn=None):
             print("\nZadali jste prázdný vstup do názvu úkolu.")
             continue
         if len(task_name) > 100:
-            print("\nZadali jste příliš dlouhý název úkolu, maximální počet znaků je 100.")
+            print(
+                "\nZadali jste příliš dlouhý název úkolu, "
+                "maximální počet znaků je 100."
+            )
             continue
         task_description = input("Zadejte popis úkolu: ").strip()
         if not task_description:
             print("\nZadali jste prázdný vstup do popisu úkolu.")
             continue
         if len(task_description) > 250:
-            print("\nZadali jste příliš dlouhý popis úkolu, maximální počet znaků je 250.")
+            print(
+                "\nZadali jste příliš dlouhý popis úkolu, "
+                "maximální počet znaků je 250."
+            )
             continue
         add_task_to_db(task_name, task_description, conn=conn)
         break
 
 
-def add_task_to_db(task_name, task_description, task_status='nezahájeno', conn=None):
+def add_task_to_db(
+    task_name, task_description, task_status="nezahájeno", conn=None
+):
     """
     Adds a new task to the database.
     If a connection (conn) is not provided, the function creates its own.
@@ -61,10 +77,11 @@ def add_task_to_db(task_name, task_description, task_status='nezahájeno', conn=
     if conn is None:
         conn = connect_to_db()
         close_conn = True
-    
+
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO ukoly (nazev, popis, stav) VALUES (%s, %s, %s)", (task_name, task_description, task_status)
+        "INSERT INTO ukoly (nazev, popis, stav) VALUES (%s, %s, %s)",
+        (task_name, task_description, task_status),
     )
     conn.commit()
     print(f"Úkol '{task_name}' byl přidán.")
@@ -72,21 +89,24 @@ def add_task_to_db(task_name, task_description, task_status='nezahájeno', conn=
     cursor.close()
     if close_conn:
         conn.close()
-        
+
 
 def get_filtered_tasks(conn=None):
     """
-    Retrieves all tasks from the 'ukoly' table with the status 'probíhá' or 'nezahájeno'.
+    Retrieves all tasks from the 'ukoly' table with the status 'probíhá' or
+    'nezahájeno'.
     If no connection (conn) is provided, the function creates its own.
     """
     close_conn = False
     if conn is None:
         conn = connect_to_db()
         close_conn = True
-    
+
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT id, nazev, popis, stav FROM ukoly WHERE stav = 'nezahájeno' OR stav = 'probíhá' ORDER BY id ASC"
+        "SELECT id, nazev, popis, stav FROM ukoly "
+        "WHERE stav = 'nezahájeno' OR stav = 'probíhá' "
+        "ORDER BY id ASC"
     )
     task_list = cursor.fetchall()
 
@@ -105,16 +125,20 @@ def show_tasks(task_list):
     if task_list:
         print(f"Seznam úkolů:\n")
         for task in task_list:
-            print(f"ID: {task[0]}, nazev: {task[1]}, popis: {task[2]}, stav: {task[3]}")
+            print(
+                f"ID: {task[0]}, nazev: {task[1]}, "
+                f"popis: {task[2]}, stav: {task[3]}"
+            )
     else:
         print("Seznam je prázdný")
         return None
+
 
 # funkce aktualizovat_ukol()
 def update_task(conn=None):
     """
     Provides an interactive interface for updating task status.
-    Displays available tasks, validates the selected ID and ensures 
+    Displays available tasks, validates the selected ID and ensures
     the new status is one of the allowed values ('probíhá', 'hotovo').
     """
     filtered_task_list = get_filtered_tasks(conn=conn)
@@ -124,17 +148,23 @@ def update_task(conn=None):
         if filtered_task_list:
             show_tasks(filtered_task_list)
             try:
-                task_id_choice = int(input("\nZadej ID úkolu pro aktualizaci jeho stavu: "))
+                task_id_choice = int(
+                    input("\nZadej ID úkolu pro aktualizaci jeho stavu: ")
+                )
             except ValueError:
                 print("Nezadáno id, aktualizace neproběhla.\n")
                 continue
-                    
+
             filtered_ids = [task[0] for task in filtered_task_list]
             if task_id_choice not in filtered_ids:
                 print("Zadané ID neexistuje.\n")
                 continue
 
-            new_status_choice = input("\nZadej nový status úkolu (probíhá/hotovo): ").lower().strip()
+            new_status_choice = (
+                input("\nZadej nový status úkolu (probíhá/hotovo): ")
+                .lower()
+                .strip()
+            )
 
             if new_status_choice not in valid_statuses:
                 print("Zadán nevalidní stav, aktualizace neproběhla.\n")
@@ -160,11 +190,15 @@ def update_task_in_db(task_id_choice, new_status_choice, conn=None):
 
     cursor = conn.cursor()
     cursor.execute(
-        "UPDATE ukoly SET stav = %s WHERE id = %s", (new_status_choice, task_id_choice)
+        "UPDATE ukoly SET stav = %s WHERE id = %s",
+        (new_status_choice, task_id_choice),
     )
-   
+
     conn.commit()
-    print(f"Úkol ID '{task_id_choice}' byl aktualizován, aktuální stav: '{new_status_choice}'.")
+    print(
+        f"Úkol ID '{task_id_choice}' byl aktualizován, "
+        f"aktuální stav: '{new_status_choice}'."
+    )
 
     cursor.close()
     if close_conn:
@@ -175,7 +209,7 @@ def update_task_in_db(task_id_choice, new_status_choice, conn=None):
 def delete_task(conn=None):
     """
     Provides an interactive interface for deleting a task.
-    Displays all existing tasks, prompts the user for a valid task ID, 
+    Displays all existing tasks, prompts the user for a valid task ID,
     and removes the selected task from the database.
     """
     all_task_list = get_all_tasks(conn=conn)
@@ -230,7 +264,7 @@ def get_all_tasks(conn=None):
     if conn is None:
         conn = connect_to_db()
         close_conn = True
-    
+
     cursor = conn.cursor()
     cursor.execute("SELECT id, nazev, popis, stav FROM ukoly")
     result = cursor.fetchall()
